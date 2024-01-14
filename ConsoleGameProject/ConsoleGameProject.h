@@ -1,6 +1,4 @@
-﻿#pragma once
-
-#ifndef CONSOLEGAMEPROJECT_H
+﻿#ifndef CONSOLEGAMEPROJECT_H
 #define CONSOLEGAMEPROJECT_H
 
 #include <iostream>
@@ -9,16 +7,11 @@
 #include <ctime>
 #include <conio.h>
 #include <Windows.h>
+#include "Maps.h" // Libriary with Maps
 
 using namespace std;
 
-// Nessecary init area value
-const int infoline_count = 1;
-const int addCol = 3;
-const int kScreenWidth = 50 + addCol;
-const int kScreenHeight = 20 + infoline_count;
-
-//Direction define
+// Direction definitions
 #define UP 'w'
 #define DOWN 's'
 #define RIGHT 'd'
@@ -26,37 +19,12 @@ const int kScreenHeight = 20 + infoline_count;
 #define HIT 'e'
 #define HEAL 'q'
 
-//Game map
-char gamefield[][kScreenWidth] = {
-    "                                                   ",
-    "################################################   ",
-    "#                                              #   ",
-    "#                                              #   ",
-    "#                                              #   ",
-    "#                                              #   ",
-    "#                                              #   ",
-    "#                                              #   ",
-    "#                                              ####",
-    "#                                               | #",
-    "#                                               |+#",
-    "#                                               | #",
-    "#                                              ####",
-    "#                                              #   ",
-    "#                                              #   ",
-    "#                                              #   ",
-    "#                                              #   ",
-    "#                                              #   ",
-    "#                                              #   ",
-    "#                                              #   ",
-    "################################################   "
-};
-
 /*
-* @brief Hero, class with hero's field  
-* 
+* @brief Hero, class with hero's field
+*
 * @param x X coordinate of hero on the gamefield matrix
 * @param y Y coordinate of hero on the gamefield matrix
-* @param symbol Symbol of hero, which displaies on the gamefield
+* @param symbol Symbol of hero, which displays on the gamefield
 * @param points Count of hited monsters
 * @param lifes Count of lifes of hero
 */
@@ -74,9 +42,9 @@ struct Hero {
 *
 * @param x X coordinate of monster on the gamefield matrix
 * @param y Y coordinate of monster on the gamefield matrix
-* @param symbol Symbol of monster, which displaies on the gamefield
+* @param symbol Symbol of monster, which displays on the gamefield
 * @param dieSymbol Symbol of monster's troope
-* @param randomHit Amount of hit, which monster can do until decrementing of hero's life 
+* @param randomHit Amount of hit, which monster can do until decrementing of hero's life
 * @param actualRandomHit Actual amount of hit
 */
 
@@ -91,21 +59,27 @@ struct Monster {
 
 /*
 * @class Witcher
-* @brief Main class for game 
+* @brief Main class for game
 */
 
 class Witcher {
 private:
+    char gamefield[Maps::kScreenHeight][Maps::kScreenWidth];
     Hero hero;
     Monster monster;
-    const char symbolHeal;
-    const char emptyCell;
     HANDLE consoleHandle;
     HWND console;
     UINT_PTR timerID;
     const time_t monsterUpdateTime;
     const unsigned short goalPoints;
 
+    /*
+    * @brief Writes a string into the game matrix at the specified coordinates
+    *
+    * @param str String to be written
+    * @param x X coordinate in the matrix
+    * @param y Y coordinate in the matrix
+    */
     void WriteStringInMatrix(const string& str, const int& x, const int& y) {
         auto size = str.size();
         for (int i = 0; i < size; i++) {
@@ -113,47 +87,181 @@ private:
         }
     }
 
+    /*
+    * @brief Deletes all 'X' symbols on the game map (monster die symbols)
+    */
     void deleteXOnMap() {
-        for (int i = 0; i < kScreenHeight; i++) {
-            for (int j = 0; j < kScreenWidth; j++) {
+        for (int i = 0; i < Maps::kScreenHeight; i++) {
+            for (int j = 0; j < Maps::kScreenWidth; j++) {
                 if (gamefield[i][j] == monster.dieSymbol) {
-                    gamefield[i][j] = emptyCell;
+                    gamefield[i][j] = Maps::emptyCell;
                 }
             }
         }
     }
+
 public:
-    Witcher() : symbolHeal('+'), emptyCell(' '), hero{1, infoline_count + 1, 'W', 0, 3}, monster{kScreenWidth / 2, kScreenHeight / 2, 'M', 'X', 3},
-                monsterUpdateTime(300), goalPoints(25) 
+    /*
+    * @brief Constructor for the Witcher class
+    */
+    Witcher() : hero{ 1, Maps::infolineCount + 1, 'W', 0, 3 }, monster{ Maps::kScreenWidth / 2, Maps::kScreenHeight / 2, 'M', 'X', 3 },
+        monsterUpdateTime(300), goalPoints(25)
     {
+        // Seed the random number generator with the current time
+        srand(static_cast<unsigned>(time(0)));
+
+        Maps::Init(gamefield, Maps::tmp3);
+
         gamefield[hero.y][hero.x] = hero.symbol;
         gamefield[monster.y][monster.x] = monster.symbol;
 
         consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
         console = GetConsoleWindow();
         RECT r;
-        GetWindowRect(console, &r); // Получение текущих размеров окна
-        MoveWindow(console, r.left, r.top, 800, 600, TRUE); // Установка новых размеров
+        GetWindowRect(console, &r); // Get the current window size
+        MoveWindow(console, r.left, r.top, 700, 600, TRUE); // Set new window size
 
         timerID = SetTimer(NULL, 0, monsterUpdateTime, (TIMERPROC)NULL);
     }
 
+    /*
+    * @brief Destructor for the Witcher class
+    */
     ~Witcher() {
         KillTimer(NULL, timerID);
     }
 
-    bool gameOn() {
-        return hero.lifes > 0 && hero.points < goalPoints;
+    /*
+    * @brief Checks if the game is still running.
+    *
+    * @return True if the hero has remaining lives, false otherwise.
+    */
+    bool hpControle() {
+        return hero.lifes > 0;
     }
 
+    /*
+    * @brief Checks if the game goal is achieved.
+    *
+    * @return True if the hero has reached the goal points, false otherwise.
+    */
+    bool goalControle() {
+        return hero.points < goalPoints;
+    }
+
+    /*
+    * @brief Main game mode where the hero interacts with the monsters.
+    */
+    void mainMode() {
+        while (this->hpControle() && this->goalControle()) {
+            // Draw the game on the console
+            this->drawGame();
+
+            // Process Windows messages and move the monster on a timer
+            MSG msg;
+            while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+                if (msg.message == WM_TIMER) {
+                    this->moveMonster();
+                }
+            }
+
+            // Check for user input
+            if (_kbhit()) {
+                char input = _getch();
+                this->moveHero(input);
+            }
+        }
+
+        system("cls");
+
+        if (!this->hpControle()) {
+            cout << R"(
+  ________                                                  
+ /  _____/_____    _____   ____     _______  __ ___________ 
+/   \  ___\__  \  /     \_/ __ \   /  _ \  \/ // __ \_  __ \
+\    \_\  \/ __ \|  Y Y  \  ___/  (  <_> )   /\  ___/|  | \/
+ \______  (____  /__|_|  /\___  >  \____/ \_/  \___  >__|   
+        \/     \/      \/     \/                   \/       
+            )" << '\n';
+        }
+
+        if (!this->goalControle()) {
+            cout << R"(
+  ________                  .___                               
+ /  _____/  ____   ____   __| _/    _________    _____   ____  
+/   \  ___ /  _ \ /  _ \ / __ |    / ___\__  \  /     \_/ __ \ 
+\    \_\  (  <_> |  <_> ) /_/ |   / /_/  > __ \|  Y Y  \  ___/ 
+ \______  /\____/ \____/\____ |   \___  (____  /__|_|  /\___  >
+        \/                   \/  /_____/     \/      \/     \/       
+            )" << '\n';
+        }
+    }
+
+    /*
+    * @brief Displays the game menu and allows the user to start the game or view controls.
+    */
+    void showGame() {
+        string menuOption;
+
+        // Display the game title
+        cout << R"(
+/  \    /  \__|/  |_  ____ |  |__   ___________    /  |  | 
+\   \/\/   /  \   __\/ ___\|  |  \_/ __ \_  __ \  /   |  |_
+ \        /|  ||  | \  \___|   Y  \  ___/|  | \/ /    ^   /
+  \__/\  / |__||__|  \___  >___|  /\___  >__|    \____   | 
+       \/                \/     \/     \/             |__|
+    )" << '\n';
+
+        // Prompt the user to start the game
+        do {
+            cout << "======= Menu ======\n";
+            cout << "1. Start game\n";
+            cout << "2. Show game control\n";
+            cout << "3. Exit\n";
+            cout << "===================\n";
+
+            cin >> menuOption;
+
+            system("cls");
+
+            if (menuOption == "1") {
+                this->mainMode();
+            }
+            else if (menuOption == "2") {
+                cout << "W S A D to Move, E to Hit and Q to Heal.\n"
+                    << "If you need more lifes - go to the tavern ('+') and get it. 10 monsters is 1 life.\n"
+                    << "The goal of game - 25 kills.\n";
+                for (int i = 0;i < Maps::kScreenHeight - Maps::infolineCount;i++) {
+                    for (int j = 0;j  < Maps::kScreenWidth;j++) {
+                        cout << Maps::example[i][j];
+                    }
+                }
+                cout << "\nEnter someting to exit...";
+                _getch();
+
+                system("cls");
+            }
+            else if (menuOption == "3") {
+                cout << "Thank you for gaming. Good bay!" << endl;
+            }
+            else {
+                cout << "Incorrect input. Please, try again ..." << endl;
+            }
+
+        } while (menuOption != "3");
+    }
+
+    /*
+    * @brief Draws the game on the console window
+    */
     void drawGame() {
-        CHAR_INFO buffer[kScreenWidth * kScreenHeight];
+        CHAR_INFO buffer[Maps::kScreenWidth * Maps::kScreenHeight]{};
 
-        WriteStringInMatrix("In " + string(1, hero.symbol) + "' bag " + to_string(hero.points) + ((hero.points != 1) ? " monstors" : " monstor") + " and " + to_string(hero.lifes) + " lifes", 0, 0);
+        WriteStringInMatrix("In " + string(1, hero.symbol) + "' bag " + to_string(hero.points) + ((hero.points != 1) ? " monsters" : " monster") + " and " + to_string(hero.lifes) + " lifes", 0, 0);
 
-        for (int y = 0; y < kScreenHeight; ++y) {
-            for (int x = 0; x < kScreenWidth; ++x) {
-                CHAR_INFO& cell = buffer[y * kScreenWidth + x];
+        for (int y = 0; y < Maps::kScreenHeight; ++y) {
+            for (int x = 0; x < Maps::kScreenWidth; ++x) {
+                CHAR_INFO& cell = buffer[y * Maps::kScreenWidth + x];
                 cell.Char.UnicodeChar = gamefield[y][x];
                 if (gamefield[y][x] == hero.symbol) {
                     cell.Attributes = FOREGROUND_GREEN | FOREGROUND_RED;
@@ -173,43 +281,46 @@ public:
             }
         }
 
-        COORD bufferSize = { static_cast<SHORT>(kScreenWidth), static_cast<SHORT>(kScreenHeight) };
+        COORD bufferSize = { static_cast<SHORT>(Maps::kScreenWidth), static_cast<SHORT>(Maps::kScreenHeight) };
         COORD characterPos = { 0, 0 };
-        SMALL_RECT consoleWriteArea = { 0, 0, static_cast<SHORT>(kScreenWidth - 1), static_cast<SHORT>(kScreenHeight - 1) };
+        SMALL_RECT consoleWriteArea = { 0, 0, static_cast<SHORT>(Maps::kScreenWidth - 1), static_cast<SHORT>(Maps::kScreenHeight - 1) };
         WriteConsoleOutput(consoleHandle, buffer, bufferSize, characterPos, &consoleWriteArea);
     }
 
+    /*
+    * @brief Moves the monster on the game map and checks for hero collisions
+    */
     void moveMonster() {
         int direction = rand() % 4;
 
         switch (direction) {
         case 0:
-            if (gamefield[monster.y - 1][monster.x] == emptyCell) {
-                gamefield[monster.y][monster.x] = emptyCell;
+            if (gamefield[monster.y - 1][monster.x] == Maps::emptyCell) {
+                gamefield[monster.y][monster.x] = Maps::emptyCell;
                 gamefield[--monster.y][monster.x] = monster.symbol;
-                break;
             }
+            break;
         case 1:
-            if (gamefield[monster.y + 1][monster.x] == emptyCell) {
-                gamefield[monster.y][monster.x] = emptyCell;
+            if (gamefield[monster.y + 1][monster.x] == Maps::emptyCell) {
+                gamefield[monster.y][monster.x] = Maps::emptyCell;
                 gamefield[++monster.y][monster.x] = monster.symbol;
-                break;
             }
+            break;
         case 2:
-            if (gamefield[monster.y][monster.x - 1] == emptyCell) {
-                gamefield[monster.y][monster.x] = emptyCell;
+            if (gamefield[monster.y][monster.x - 1] == Maps::emptyCell) {
+                gamefield[monster.y][monster.x] = Maps::emptyCell;
                 gamefield[monster.y][--monster.x] = monster.symbol;
-                break;
             }
+            break;
         case 3:
-            if (gamefield[monster.y][monster.x + 1] == emptyCell) {
-                gamefield[monster.y][monster.x] = emptyCell;
+            if (gamefield[monster.y][monster.x + 1] == Maps::emptyCell) {
+                gamefield[monster.y][monster.x] = Maps::emptyCell;
                 gamefield[monster.y][++monster.x] = monster.symbol;
-                break;
             }
+            break;
         }
 
-        for (int i = -1;i <= 1;i++) {
+        for (int i = -1; i <= 1; i++) {
             for (int j = -1; j <= 1; j++) {
                 if (gamefield[monster.y + i][monster.x + j] == hero.symbol) {
                     monster.actualRandomHit++;
@@ -222,29 +333,34 @@ public:
         }
     }
 
+    /*
+    * @brief Moves the hero on the game map based on user input
+    *
+    * @param direction Direction of movement (UP, DOWN, LEFT, RIGHT, HIT, HEAL)
+    */
     void moveHero(const char& direction) {
         switch (tolower(direction)) {
         case UP:
-            if (gamefield[hero.y - 1][hero.x] == emptyCell) {
-                gamefield[hero.y][hero.x] = emptyCell;
+            if (gamefield[hero.y - 1][hero.x] == Maps::emptyCell) {
+                gamefield[hero.y][hero.x] = Maps::emptyCell;
                 gamefield[--hero.y][hero.x] = hero.symbol;
             }
             break;
         case DOWN:
-            if (gamefield[hero.y + 1][hero.x] == emptyCell) {
-                gamefield[hero.y][hero.x] = emptyCell;
+            if (gamefield[hero.y + 1][hero.x] == Maps::emptyCell) {
+                gamefield[hero.y][hero.x] = Maps::emptyCell;
                 gamefield[++hero.y][hero.x] = hero.symbol;
             }
             break;
         case LEFT:
-            if (gamefield[hero.y][hero.x - 1] == emptyCell) {
-                gamefield[hero.y][hero.x] = emptyCell;
+            if (gamefield[hero.y][hero.x - 1] == Maps::emptyCell) {
+                gamefield[hero.y][hero.x] = Maps::emptyCell;
                 gamefield[hero.y][--hero.x] = hero.symbol;
             }
             break;
         case RIGHT:
-            if (gamefield[hero.y][hero.x + 1] == emptyCell) {
-                gamefield[hero.y][hero.x] = emptyCell;
+            if (gamefield[hero.y][hero.x + 1] == Maps::emptyCell) {
+                gamefield[hero.y][hero.x] = Maps::emptyCell;
                 gamefield[hero.y][++hero.x] = hero.symbol;
             }
             break;
@@ -254,8 +370,10 @@ public:
                     if (gamefield[hero.y + i][hero.x + j] == monster.symbol) {
                         hero.points++;
                         gamefield[monster.y][monster.x] = monster.dieSymbol;
-                        monster.x = rand() % (kScreenWidth - addCol - 3) + 1;
-                        monster.y = rand() % (kScreenHeight - infoline_count - 2) + infoline_count + 1;
+                        do {
+                            monster.x = rand() % (Maps::kScreenWidth - Maps::addCol - 4) + 1;
+                            monster.y = rand() % (Maps::kScreenHeight - Maps::infolineCount - 2) + Maps::infolineCount + 1;
+                        } while (gamefield[monster.y][monster.x] != Maps::emptyCell);
                         this->moveMonster();
                         monster.actualRandomHit = 0;
                         return;
@@ -264,9 +382,9 @@ public:
             }
             break;
         case HEAL:
-            for (int i = -1; i <= 1; i++) {
-                for (int j = -1; j <= 1; j++) {
-                    if (gamefield[hero.y + i][hero.x + j] == '|') {
+            for (int i = -2; i <= 2; i++) {
+                for (int j = -2; j <= 2; j++) {
+                    if (gamefield[hero.y + i][hero.x + j] == Maps::symbolHeal) {
                         if (hero.points >= 10) {
                             hero.lifes++;
                             hero.points -= 10;
