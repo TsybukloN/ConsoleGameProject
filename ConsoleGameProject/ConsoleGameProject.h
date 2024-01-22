@@ -2,6 +2,7 @@
 #define CONSOLEGAMEPROJECT_H
 
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <string>
 #include <ctime>
@@ -69,6 +70,8 @@ private:
     Monster monster;
     HANDLE consoleHandle;
     HWND console;
+    const string dataPath;
+    fstream save;
     UINT_PTR timerID;
     const time_t monsterUpdateTime;
     const unsigned short goalPoints;
@@ -105,12 +108,14 @@ public:
     * @brief Constructor for the Witcher class
     */
     Witcher() : hero{ 1, Maps::infolineCount + 1, 'W', 0, 3 }, monster{ Maps::kScreenWidth / 2, Maps::kScreenHeight / 2, 'M', 'X', 3 },
-        monsterUpdateTime(300), goalPoints(25)
+        monsterUpdateTime(300), goalPoints(25), dataPath("data.txt")
     {
         // Seed the random number generator with the current time
         srand(static_cast<unsigned>(time(0)));
 
         Maps::Init(gamefield, Maps::tmp3);
+
+        save.open(dataPath, ios::out | ios::in);
 
         gamefield[hero.y][hero.x] = hero.symbol;
         gamefield[monster.y][monster.x] = monster.symbol;
@@ -153,6 +158,8 @@ public:
     * @brief Main game mode where the hero interacts with the monsters.
     */
     void mainMode() {
+        char input;
+
         while (this->hpControle() && this->goalControle()) {
             // Draw the game on the console
             this->drawGame();
@@ -167,8 +174,25 @@ public:
 
             // Check for user input
             if (_kbhit()) {
-                char input = _getch();
-                this->moveHero(input);
+                input = _getch();
+
+                if (input == 'p' || input == 'P') {
+                    cout << "Do you want save this game (y/n)?";
+                    input = _getch();
+                    if ((input == 'y' || input == 'Y') && save) {
+                        save.clear();
+                        save.seekp(0, ios::beg);
+                        save << hero.lifes << ' ' << hero.points;
+                    }
+                    system("cls");
+                }
+                else if (input == 'm' || input == 'M') {
+                    system("cls");
+                    return;
+                }
+                else {
+                    this->moveHero(input);
+                }
             }
         }
 
@@ -203,21 +227,21 @@ public:
     void showGame() {
         string menuOption;
 
-        // Display the game title
-        cout << R"(
+        // Prompt the user to start the game
+        do {
+            // Display the game title
+            cout << R"(
 /  \    /  \__|/  |_  ____ |  |__   ___________    /  |  | 
 \   \/\/   /  \   __\/ ___\|  |  \_/ __ \_  __ \  /   |  |_
  \        /|  ||  | \  \___|   Y  \  ___/|  | \/ /    ^   /
   \__/\  / |__||__|  \___  >___|  /\___  >__|    \____   | 
        \/                \/     \/     \/             |__|
     )" << '\n';
-
-        // Prompt the user to start the game
-        do {
             cout << "======= Menu ======\n";
             cout << "1. Start game\n";
-            cout << "2. Show game control\n";
-            cout << "3. Exit\n";
+            cout << "2. Start from saveing\n";
+            cout << "3. Show game control\n";
+            cout << "4. Exit\n";
             cout << "===================\n";
 
             cin >> menuOption;
@@ -228,8 +252,13 @@ public:
                 this->mainMode();
             }
             else if (menuOption == "2") {
+                save.seekp(0, ios::beg);
+                save >> hero.lifes >> hero.points;
+                this->mainMode();
+            }
+            else if (menuOption == "3") {
                 cout << "W S A D to Move, E to Hit and Q to Heal.\n"
-                    << "If you need more lifes - go to the tavern ('+') and get it. 10 monsters is 1 life.\n"
+                    << "If you need more lifes - go to the tavern ('+') and get it. 10 monsters in the bag is 1 life.\n"
                     << "The goal of game - 25 kills.\n";
                 for (int i = 0;i < Maps::kScreenHeight - Maps::infolineCount;i++) {
                     for (int j = 0;j  < Maps::kScreenWidth;j++) {
@@ -241,14 +270,14 @@ public:
 
                 system("cls");
             }
-            else if (menuOption == "3") {
+            else if (menuOption == "4") {
                 cout << "Thank you for gaming. Good bay!" << endl;
             }
             else {
                 cout << "Incorrect input. Please, try again ..." << endl;
             }
 
-        } while (menuOption != "3");
+        } while (menuOption != "4");
     }
 
     /*
