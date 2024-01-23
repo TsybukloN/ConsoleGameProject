@@ -25,7 +25,7 @@ This console-based game serves as the final project for the "Introduction to Pro
 
 ### Gameplay
 
-The player controls the character using the 'W', 'A', 'S', 'D' keys for movement, 'E' to hit monsters, and 'Q' to heal.
+The player controls the character using the 'W', 'A', 'S', 'D' keys for movement, 'E' to hit monsters, and 'Q' to heal. If you want to save the game - click 'P' and then 'Y'. 'M' to stop game.
 The game map is displayed on the console, featuring the character (Witcher), monsters, and other elements.
 Monsters move randomly, and the player gains points by hitting monsters.
 The player can heal if they accumulate enough points and reach a healing spot ('+' symbol).

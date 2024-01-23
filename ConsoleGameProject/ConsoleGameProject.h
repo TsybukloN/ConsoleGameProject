@@ -238,7 +238,7 @@ public:
        \/                \/     \/     \/             |__|
     )" << '\n';
             cout << "======= Menu ======\n";
-            cout << "1. Start game\n";
+            cout << "1. Start new game\n";
             cout << "2. Start from saveing\n";
             cout << "3. Show game control\n";
             cout << "4. Exit\n";
@@ -250,6 +250,9 @@ public:
 
             if (menuOption == "1") {
                 this->mainMode();
+                this->deleteXOnMap();
+                hero.lifes = 3;
+                hero.points = 0;
             }
             else if (menuOption == "2") {
                 save.seekp(0, ios::beg);
@@ -257,7 +260,7 @@ public:
                 this->mainMode();
             }
             else if (menuOption == "3") {
-                cout << "W S A D to Move, E to Hit and Q to Heal.\n"
+                cout << "W S A D to Move, E to Hit and Q to Heal. If you want to save the game - click P and then Y. M to stop game.\n"
                     << "If you need more lifes - go to the tavern ('+') and get it. 10 monsters in the bag is 1 life.\n"
                     << "The goal of game - 25 kills.\n";
                 for (int i = 0;i < Maps::kScreenHeight - Maps::infolineCount;i++) {
